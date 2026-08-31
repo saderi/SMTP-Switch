@@ -1,5 +1,5 @@
-# GitLab CI: test on 3.11–3.13, then build + push the Docker image to the
-# project's GitLab Container Registry ($CI_REGISTRY_IMAGE).
+# GitLab CI: run tests, then build + push the Docker image to the project's
+# GitLab Container Registry ($CI_REGISTRY_IMAGE).
 
 stages: [test, build]
 
@@ -14,13 +14,9 @@ variables:
 
 test:
   stage: test
-  image: "$TEST_IMAGE"
-  parallel:
-    matrix:
-      - TEST_IMAGE:
-          - "python:3.11-slim"
-          - "python:3.12-slim"
-          - "python:3.13-slim"
+  tags:
+    - docker_runner
+  image: "python:3.12-slim"
   cache: *pip-cache
   script:
     - python -m pip install --upgrade pip
@@ -35,11 +31,9 @@ test:
 
 build-image:
   stage: build
-  image: docker:27
-  services:
-    - docker:27-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
+  tags:
+    - docker_runner
+  image: docker:27-cli
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   script:
