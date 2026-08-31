@@ -37,9 +37,11 @@ build-image:
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   script:
-    - docker build --cache-from "$CI_REGISTRY_IMAGE:latest" --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" --tag "$CI_REGISTRY_IMAGE:latest" .
-    - docker run -d --name sw -p 8080:8080 \
-      -e SMTP_SWITCH_WEB__SESSION_SECRET=ci-smoke-secret \
+    - docker build --cache-from "$CI_REGISTRY_IMAGE:latest"
+      --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      --tag "$CI_REGISTRY_IMAGE:latest" .
+    - docker run -d --name sw -p 8080:8080
+      -e SMTP_SWITCH_WEB__SESSION_SECRET=ci-smoke-secret
       "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
     - sleep 5 && curl -s http://127.0.0.1:8080/healthz | grep -q "ok"
     - docker rm -f sw
