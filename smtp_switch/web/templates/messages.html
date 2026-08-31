@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="filters" method="get">
+  <select name="status">
+    <option value="" {{ 'selected' if not status }}>all statuses</option>
+    {% for s in ['queued', 'sending', 'sent', 'deadletter'] %}
+    <option value="{{ s }}" {{ 'selected' if status == s }}>{{ s }}</option>
+    {% endfor %}
+  </select>
+  <input name="q" value="{{ q }}" placeholder="from / subject / message-id">
+  <button type="submit">Filter</button>
+</form>
+
+<table class="grid">
+  <thead><tr><th>ID</th><th>Received</th><th>From</th><th>To</th><th>Subject</th><th>Status</th><th>Try</th><th>Provider</th></tr></thead>
+  <tbody>
+  {% for m in messages %}
+    <tr>
+      <td><a href="/messages/{{ m.id }}">{{ m.id }}</a></td>
+      <td><small>{{ m.received_at.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+      <td>{{ m.from_addr }}</td>
+      <td>{{ m.rcpt_to | join(', ') }}</td>
+      <td>{{ m.subject or '' }}</td>
+      <td><span class="pill {{ m.status }}">{{ m.status }}</span></td>
+      <td>{{ m.attempts }}</td>
+      <td>{{ m.provider_used or '' }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="8"><em>no messages</em></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="pager">
+  {% if prev_offset is not none %}<a href="?status={{ status }}&q={{ q }}&offset={{ prev_offset }}">&larr; Newer</a>{% endif %}
+  {% if next_offset is not none %}<a href="?status={{ status }}&q={{ q }}&offset={{ next_offset }}">Older &rarr;</a>{% endif %}
+</div>
+{% endblock %}

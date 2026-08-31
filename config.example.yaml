@@ -1,0 +1,105 @@
+# smtp_switch configuration — copy to config.yaml and fill in real values.
+# Any leaf can be overridden by env: SMTP_SWITCH_<SECTION>__<KEY> (e.g.
+# SMTP_SWITCH_PROVIDERS is not overridable this way — use the file for lists).
+
+ingress:
+  host: 0.0.0.0
+  port: 2525
+  hostname: smtp-switch.internal
+  tls:
+    # Required before AUTH is offered when require_starttls is true.
+    cert_file: ./data/certs/fullchain.pem
+    key_file: ./data/certs/privkey.pem
+    require_starttls: true
+  allowed_ips:
+    - "127.0.0.1/32"
+    - "::1/128"
+    - "10.0.0.0/8"
+  max_message_bytes: 26214400   # 25 MiB
+  require_auth: true
+
+dispatch:
+  workers: 4
+  spool_dir: ./data/spool
+  claim_batch_size: 20
+  poll_interval_seconds: 1.0
+  failover_per_tick: 3
+  no_capacity_backoff_seconds: 20
+  retry:
+    base_delay_seconds: 30
+    max_delay_seconds: 3600
+    max_attempts: 12
+    max_age_hours: 48
+    jitter_ratio: 0.2
+
+circuit_breaker:
+  failure_threshold: 5
+  cooldown_seconds: 120
+  half_open_max_probes: 1
+
+providers:
+  - name: smtp2go
+    enabled: true
+    priority: 10
+    smtp:
+      host: mail.smtp2go.com
+      port: 587
+      starttls: true
+      username: CHANGE_ME
+      password: CHANGE_ME
+      timeout_seconds: 30
+    limits:
+      max_concurrent: 10
+      per_second: 10
+      per_minute: 300
+      per_hour: null
+      per_day: 10000
+      per_month: 200000
+      month_reset_day: 1
+
+  - name: mailgun
+    enabled: true
+    priority: 20
+    smtp:
+      host: smtp.mailgun.org
+      port: 587
+      starttls: true
+      username: postmaster@mg.example.com
+      password: CHANGE_ME
+    limits:
+      max_concurrent: 5
+      per_second: 5
+      per_month: 50000
+      month_reset_day: 1
+
+  - name: resend
+    enabled: true
+    priority: 30
+    smtp:
+      host: smtp.resend.com
+      port: 587
+      starttls: true
+      username: resend
+      password: re_CHANGE_ME
+    limits:
+      per_second: 2
+      per_day: 3000
+      per_month: 100000
+      month_reset_day: 1
+
+web:
+  host: 127.0.0.1
+  port: 8080
+  session_secret: CHANGE_ME_TO_A_LONG_RANDOM_STRING
+  session_ttl_seconds: 86400
+
+database:
+  url: sqlite+aiosqlite:///./data/smtp_switch.db
+  echo: false
+
+logging:
+  level: INFO
+  json: true
+
+metrics:
+  enabled: true

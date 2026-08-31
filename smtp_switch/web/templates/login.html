@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="card login" onsubmit="return doLogin(event)">
+  <label>Username <input name="username" autocomplete="username" required autofocus></label>
+  <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+  <button type="submit">Sign in</button>
+  <p class="error" id="err" hidden></p>
+</form>
+{% endblock %}

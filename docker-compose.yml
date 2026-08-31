@@ -1,0 +1,14 @@
+services:
+  smtp-switch:
+    build: .
+    image: smtp-switch:latest
+    restart: unless-stopped
+    ports:
+      - "2525:2525"     # SMTP submission (from your internal services)
+      - "127.0.0.1:8080:8080"  # dashboard — localhost only by default
+    volumes:
+      - ./data:/data    # config.yaml, sqlite db, spool, TLS certs
+    environment:
+      # Secrets are better injected here than committed to config.yaml.
+      SMTP_SWITCH_WEB__SESSION_SECRET: "${SMTP_SWITCH_WEB__SESSION_SECRET:?set a long random value}"
+    stop_grace_period: 30s

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+{% for p in providers %}
+<section class="card" id="{{ p.name }}">
+  <header>
+    <h2>{{ p.name }} <small>priority {{ p.priority }} · {{ p.smtp_host }}</small></h2>
+    <span class="pill {{ p.breaker }}">{{ p.breaker }}</span>
+    {% if p.enabled %}<span class="pill ok">enabled</span>{% else %}<span class="pill off">disabled</span>{% endif %}
+  </header>
+
+  <div class="limits">
+  {% for w in p.windows %}
+    <div class="bar" title="{{ w.window }}">
+      <span style="width: {{ (100 * w.used / w.limit) if w.limit else 0 }}%"></span>
+      <em>{{ w.window }}: {{ w.used }} / {{ w.limit }} (headroom {{ w.headroom }})</em>
+    </div>
+  {% else %}<p><small>no rate limits configured</small></p>{% endfor %}
+  </div>
+
+  <p>
+    In-flight: {{ p.inflight }} ·
+    Consecutive failures: {{ p.consecutive_failures }} ·
+    Last success: {{ p.last_success_at or '-' }} ·
+    Last failure: {{ p.last_failure_at or '-' }}
+  </p>
+
+  <div class="actions">
+    {% if p.enabled %}
+      <button class="btn" onclick="providerAction('{{ p.name }}', 'disable')">Disable</button>
+    {% else %}
+      <button class="btn" onclick="providerAction('{{ p.name }}', 'enable')">Enable</button>
+    {% endif %}
+    {% if p.breaker != 'closed' %}
+      <button class="btn" onclick="providerAction('{{ p.name }}', 'reset-breaker')">Reset breaker</button>
+    {% endif %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

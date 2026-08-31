@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="card" onsubmit="return createAccount(event)">
+  <h2>Add sending account</h2>
+  <label>Username <input name="username" required></label>
+  <label>Password <input name="password" type="text" minlength="8" required></label>
+  <label>Description <input name="description"></label>
+  <button type="submit">Create</button>
+</form>
+
+<table class="grid">
+  <thead><tr><th>Username</th><th>Description</th><th>Enabled</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+  <tbody>
+  {% for a in accounts %}
+    <tr>
+      <td>{{ a.username }}</td>
+      <td>{{ a.description or '' }}</td>
+      <td>{{ 'yes' if a.enabled else 'no' }}</td>
+      <td><small>{{ a.created_at.strftime('%Y-%m-%d') }}</small></td>
+      <td><small>{{ a.last_used_at.strftime('%Y-%m-%d %H:%M') if a.last_used_at else '-' }}</small></td>
+      <td class="row-actions">
+        <button class="link" onclick="acctToggle({{ a.id }})">{{ 'disable' if a.enabled else 'enable' }}</button>
+        <button class="link" onclick="acctPassword({{ a.id }})">reset pw</button>
+        <button class="link danger" onclick="acctDelete({{ a.id }})">delete</button>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6"><em>no accounts — internal services cannot authenticate yet</em></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

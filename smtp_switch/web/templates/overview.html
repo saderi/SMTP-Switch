@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="tiles">
+  <div class="tile"><span class="n">{{ queue.get('queued', 0) }}</span><span class="l">Queued</span></div>
+  <div class="tile"><span class="n">{{ queue.get('sending', 0) }}</span><span class="l">Sending</span></div>
+  <div class="tile"><span class="n">{{ throughput.sent }}</span><span class="l">Sent / 60m</span></div>
+  <div class="tile"><span class="n">{{ throughput.received }}</span><span class="l">Received / 60m</span></div>
+  <div class="tile {{ 'warn' if queue.get('deadletter', 0) }}"><span class="n">{{ queue.get('deadletter', 0) }}</span><span class="l">Dead-lettered</span></div>
+</section>
+
+<h2>Providers</h2>
+<table class="grid">
+  <thead><tr><th>Provider</th><th>Priority</th><th>Breaker</th><th>In-flight</th><th>Headroom</th><th>State</th></tr></thead>
+  <tbody>
+  {% for p in providers %}
+    <tr>
+      <td><a href="/providers#{{ p.name }}">{{ p.name }}</a><br><small>{{ p.smtp_host }}</small></td>
+      <td>{{ p.priority }}</td>
+      <td><span class="pill {{ p.breaker }}">{{ p.breaker }}</span></td>
+      <td>{{ p.inflight }}</td>
+      <td>
+        {% for w in p.windows %}
+          <div class="bar" title="{{ w.window }}: {{ w.used }}/{{ w.limit }}">
+            <span style="width: {{ (100 * w.used / w.limit) if w.limit else 0 }}%"></span>
+            <em>{{ w.window }} {{ w.used }}/{{ w.limit }}</em>
+          </div>
+        {% else %}<small>no limits</small>{% endfor %}
+      </td>
+      <td>
+        {% if not p.enabled %}<span class="pill off">disabled</span>
+        {% elif p.accepting %}<span class="pill ok">accepting</span>
+        {% else %}<span class="pill warn">capped ({{ p.blocking_window }})</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p><a href="/messages?status=deadletter">View dead-letter queue &rarr;</a></p>
+{% endblock %}

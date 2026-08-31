@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="/messages">&larr; All messages</a></p>
+<table class="kv">
+  <tr><th>Status</th><td><span class="pill {{ msg.status }}">{{ msg.status }}</span></td></tr>
+  <tr><th>From</th><td>{{ msg.from_addr }}</td></tr>
+  <tr><th>To</th><td>{{ msg.rcpt_to | join(', ') }}</td></tr>
+  <tr><th>Subject</th><td>{{ msg.subject or '' }}</td></tr>
+  <tr><th>Message-ID</th><td>{{ msg.message_id_header or '' }}</td></tr>
+  <tr><th>Submitting account</th><td>{{ msg.submitting_account or '-' }}</td></tr>
+  <tr><th>Size</th><td>{{ msg.size }} bytes</td></tr>
+  <tr><th>Received</th><td>{{ msg.received_at }}</td></tr>
+  <tr><th>Attempts</th><td>{{ msg.attempts }}</td></tr>
+  <tr><th>Next attempt</th><td>{{ msg.next_attempt_at }}</td></tr>
+  <tr><th>Provider used</th><td>{{ msg.provider_used or '-' }}</td></tr>
+  <tr><th>Sent at</th><td>{{ msg.sent_at or '-' }}</td></tr>
+  <tr><th>Last error</th><td>{{ msg.last_error or '-' }}</td></tr>
+</table>
+
+<div class="actions">
+  <a class="btn" href="/api/messages/{{ msg.id }}/raw">Download .eml</a>
+  {% if msg.status in ('deadletter', 'sent') %}
+  <button class="btn" onclick="msgAction({{ msg.id }}, 'requeue')">Requeue</button>
+  {% endif %}
+  <button class="btn danger" onclick="msgDelete({{ msg.id }})">Delete</button>
+</div>
+
+<h2>Delivery attempts</h2>
+<table class="grid">
+  <thead><tr><th>#</th><th>Provider</th><th>Result</th><th>Code</th><th>Started</th><th>Finished</th><th>Error</th></tr></thead>
+  <tbody>
+  {% for a in attempts %}
+    <tr>
+      <td>{{ a.attempt_no }}</td>
+      <td>{{ a.provider or '-' }}</td>
+      <td><span class="pill {{ a.result }}">{{ a.result }}</span></td>
+      <td>{{ a.smtp_code or '' }}</td>
+      <td><small>{{ a.started_at.strftime('%H:%M:%S') if a.started_at }}</small></td>
+      <td><small>{{ a.finished_at.strftime('%H:%M:%S') if a.finished_at }}</small></td>
+      <td><small>{{ a.error or '' }}</small></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7"><em>no attempts yet</em></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

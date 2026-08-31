@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smtp-switch"
+version = "0.1.0"
+description = "An SMTP switch that fronts multiple email providers with health- and rate-aware routing."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Payam Saderi", email = "saderi@gmail.com" }]
+dependencies = [
+    "aiosmtpd>=1.4.5",
+    "aiosmtplib>=3.0",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "aiosqlite>=0.20",
+    "alembic>=1.13",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    "argon2-cffi>=23.1",
+    "structlog>=24.1",
+    "prometheus-client>=0.20",
+    "itsdangerous>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "anyio>=4.4",
+    "httpx>=0.27",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+smtp-switch = "smtp_switch.main:run"
+smtp-switch-admin = "smtp_switch.admin:main"
+
+[tool.setuptools.packages.find]
+include = ["smtp_switch*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["smtp_switch/migrations/versions", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["B008"]  # FastAPI Depends() in defaults
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+ignore_missing_imports = true
