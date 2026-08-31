@@ -1,14 +1,30 @@
+# Single-node evaluation / small install.
+#
+#   1. cp config.example.yaml config.yaml   # then edit provider credentials
+#   2. cp .env.example .env                 # then set SMTP_SWITCH_WEB__SESSION_SECRET
+#   3. docker compose up -d
+#   4. docker compose exec smtp-switch smtp-switch-admin user add admin --generate
+#      docker compose exec smtp-switch smtp-switch-admin account add app1 --generate
+#
+# config.yaml must exist before `up` — an absent bind-mount source becomes a directory.
+
 services:
   smtp-switch:
     build: .
     image: smtp-switch:latest
     restart: unless-stopped
     ports:
-      - "2525:2525"     # SMTP submission (from your internal services)
-      - "127.0.0.1:8080:8080"  # dashboard — localhost only by default
-    volumes:
-      - ./data:/data    # config.yaml, sqlite db, spool, TLS certs
+      - "2525:2525"              # SMTP submission from your applications
+      - "127.0.0.1:8080:8080"    # dashboard / API / metrics — localhost only
     environment:
-      # Secrets are better injected here than committed to config.yaml.
-      SMTP_SWITCH_WEB__SESSION_SECRET: "${SMTP_SWITCH_WEB__SESSION_SECRET:?set a long random value}"
+      # Injected here rather than committed to config.yaml. Required; the
+      # container refuses to start if it is unset or empty.
+      SMTP_SWITCH_WEB__SESSION_SECRET: "${SMTP_SWITCH_WEB__SESSION_SECRET:?set a long random value in .env}"
+    volumes:
+      - smtp_switch_data:/data                 # SQLite database + message spool
+      - ./config.yaml:/data/config.yaml:ro     # provider list + settings
+      # - ./certs:/data/certs:ro               # cert/key if you enable ingress STARTTLS
     stop_grace_period: 30s
+
+volumes:
+  smtp_switch_data:

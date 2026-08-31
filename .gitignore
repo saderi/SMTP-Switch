@@ -1,5 +1,6 @@
 # Runtime data
 /data/
+/certs/
 config.yaml
 *.db
 *.db-wal
@@ -15,6 +16,8 @@ dist/
 .venv/
 venv/
 .env
+.env.*
+!.env.example
 
 # Tooling
 .pytest_cache/

@@ -1,5 +1,6 @@
 .venv/
 data/
+certs/
 .git/
 .github/
 .gitlab-ci.yml
@@ -14,3 +15,14 @@ config.yaml
 *.db
 *.db-wal
 *.db-shm
+
+# Local env and project docs — not needed in the image
+.env
+.env.*
+docs/
+ANNOUNCEMENT.md
+CONTRIBUTING.md
+SECURITY.md
+CODE_OF_CONDUCT.md
+CHANGELOG.md
+docker-compose.yml

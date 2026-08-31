@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/saderi/SMTP-Switch/security/advisories/new
+    about: Report a vulnerability privately. Do not open a public issue.
+  - name: Questions and discussion
+    url: https://github.com/saderi/SMTP-Switch/discussions
+    about: Usage questions, design discussion, "how do others handle this".

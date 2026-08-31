@@ -1,0 +1,93 @@
+name: Bug report
+description: Something is not behaving as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please redact provider credentials, `session_secret`,
+        and recipient addresses from anything you paste.
+        For security-sensitive issues, follow SECURITY.md instead of filing here.
+
+  - type: input
+    id: version
+    attributes:
+      label: SMTP-Switch version / commit
+      description: Output of `git rev-parse --short HEAD`, an image tag, or the release.
+      placeholder: "0.1.0 / a1b2c3d"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment method
+      options:
+        - Docker Compose (provided file)
+        - Container (other orchestration)
+        - From source (venv)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: Only for from-source deployments (`python --version`).
+      placeholder: "3.12.x"
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. config as below
+        2. submit a message with `swaks ...`
+        3. observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration (secrets removed)
+      description: The `providers`, `dispatch`, `circuit_breaker`, `ingress` sections as relevant.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Log lines around the failure. JSON logs are fine as-is.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: providers
+    attributes:
+      label: Upstream provider(s) involved
+      placeholder: "SMTP2GO (primary), Mailgun (fallback)"
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Queue depth, metrics values, dashboard screenshots, timing.

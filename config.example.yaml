@@ -6,17 +6,22 @@ ingress:
   host: 0.0.0.0
   port: 2525
   hostname: smtp-switch.internal
+
+  # TLS for the ingress listener. OFF here so the quick start works without
+  # certificates. TURN THIS ON before any non-localhost use: without it, SMTP
+  # AUTH credentials cross the network base64-encoded, not encrypted.
+  # Provide a cert + key, set require_starttls: true, then restart.
   tls:
-    # Required before AUTH is offered when require_starttls is true.
-    cert_file: ./data/certs/fullchain.pem
-    key_file: ./data/certs/privkey.pem
-    require_starttls: true
+    cert_file: null           # e.g. /data/certs/fullchain.pem
+    key_file: null            # e.g. /data/certs/privkey.pem
+    require_starttls: false    # set true once cert_file/key_file are set
+
   allowed_ips:
     - "127.0.0.1/32"
     - "::1/128"
-    - "10.0.0.0/8"
+    - "10.0.0.0/8"            # your application subnet; "0.0.0.0/0" disables IP filtering
   max_message_bytes: 26214400   # 25 MiB
-  require_auth: true
+  require_auth: true            # require SMTP AUTH; keep this on
 
 dispatch:
   workers: 4
