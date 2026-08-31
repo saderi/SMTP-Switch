@@ -33,7 +33,7 @@ build-image:
   stage: build
   tags:
     - docker_runner
-  image: docker:27-cli
+  image: peekh-hub.sudonic.com/saderi/devops-toolkit:latest
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   script:
