@@ -1,0 +1,16 @@
+.venv/
+data/
+.git/
+.github/
+.gitlab-ci.yml
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+tests/
+config.yaml
+*.db
+*.db-wal
+*.db-shm

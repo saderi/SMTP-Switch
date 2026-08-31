@@ -7,12 +7,12 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Dependencies first for layer caching.
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md alembic.ini ./
 COPY smtp_switch ./smtp_switch
 RUN pip install --no-cache-dir .
 
 # Non-root; /data is the writable volume (sqlite db + spool + certs).
-RUN useradd --system --uid 10001 --create-home switch \
+RUN useradd --uid 10001 --create-home switch \
     && mkdir -p /data/spool /data/certs \
     && chown -R switch:switch /data /app
 USER switch

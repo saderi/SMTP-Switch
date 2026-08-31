@@ -46,6 +46,16 @@ smtp-switch-admin = "smtp_switch.admin:main"
 [tool.setuptools.packages.find]
 include = ["smtp_switch*"]
 
+[tool.setuptools.package-data]
+smtp_switch = [
+    "web/templates/*.html",
+    "web/static/*",
+    "migrations/*.mako",
+    "migrations/*.py",
+    "migrations/README",
+    "migrations/versions/*.py",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

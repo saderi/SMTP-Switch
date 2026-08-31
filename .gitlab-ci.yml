@@ -1,0 +1,71 @@
+# GitLab CI: test on 3.11–3.13, then build + push the Docker image to the
+# project's GitLab Container Registry ($CI_REGISTRY_IMAGE).
+
+stages: [test, build]
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+.pip-cache: &pip-cache
+  key:
+    files: [pyproject.toml]
+  paths:
+    - .cache/pip
+
+test:
+  stage: test
+  image: "$TEST_IMAGE"
+  parallel:
+    matrix:
+      - TEST_IMAGE:
+          - "python:3.11-slim"
+          - "python:3.12-slim"
+          - "python:3.13-slim"
+  cache: *pip-cache
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -e ".[dev]"
+    - ruff check .
+    - mypy smtp_switch
+    - pytest -q
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+build-image:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - |
+      set -eu
+      TAGS="-t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      [ "$CI_COMMIT_REF_NAME" = "$CI_DEFAULT_BRANCH" ] && TAGS="$TAGS -t $CI_REGISTRY_IMAGE:latest" || true
+      [ -n "${CI_COMMIT_TAG:-}" ] && TAGS="$TAGS -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG" || true
+      docker build --pull $TAGS .
+    - |
+      set -eu
+      # Don't publish images for merge-request pipelines — build only.
+      if [ "$CI_PIPELINE_SOURCE" != "merge_request_event" ]; then
+        docker push -a "$CI_REGISTRY_IMAGE"
+      fi
+    - |
+      set -eu
+      docker run -d --name sw -p 8080:8080 \
+        -e SMTP_SWITCH_WEB__SESSION_SECRET=ci-smoke-secret \
+        "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      for _ in $(seq 1 20); do
+        wget -qO- http://docker:8080/healthz && break || sleep 1
+      done
+      wget -qO- http://docker:8080/healthz
+      docker rm -f sw
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
