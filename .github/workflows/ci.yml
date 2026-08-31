@@ -6,20 +6,31 @@ on:
     tags: ["v*"]
   pull_request:
 
+# Least privilege by default; each job opts back in to what it needs.
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Supersede in-progress branch/PR runs, but never a tag (release) build.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-          cache: pip
+          # Scoped to this job (ruff/mypy/pytest); never feeds the published
+          # image. Also disabled on tag refs as defence against cache poisoning.
+          cache: ${{ !startsWith(github.ref, 'refs/tags/') && 'pip' || '' }} # zizmor: ignore[cache-poisoning]
           cache-dependency-path: pyproject.toml
 
       - run: python -m pip install --upgrade pip
@@ -37,25 +48,28 @@ jobs:
   docker:
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write        # push to GitHub Container Registry
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
-      # Push only on branch/tag builds, not PRs from forks.
+      # Push only on branch/tag builds, not PRs (incl. from forks).
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -66,24 +80,36 @@ jobs:
             type=sha,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - uses: docker/build-push-action@v7
+      - id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
+          # PRs: load into the local daemon so the smoke test can run it.
+          # Trusted refs: push to GHCR with provenance + SBOM attestations
+          # (the two exporters are mutually exclusive, hence the conditionals).
+          load: ${{ github.event_name == 'pull_request' }}
           push: ${{ github.event_name != 'pull_request' }}
+          provenance: ${{ github.event_name != 'pull_request' }}
+          sbom: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       # Fail the job if the built image can't come up and serve /healthz.
+      # Runs on PRs too (image is loaded locally) and on pushes (pulled from GHCR).
       - name: Smoke test image
-        if: github.event_name != 'pull_request'
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          set -euo pipefail
+          IMAGE=${TAGS%%$'\n'*}
+          trap 'rc=$?; [ "$rc" -eq 0 ] || docker logs sw || true; docker rm -f sw >/dev/null 2>&1 || true; exit "$rc"' EXIT
           docker run -d --name sw -p 8080:8080 \
             -e SMTP_SWITCH_WEB__SESSION_SECRET=ci-smoke-secret "$IMAGE"
-          for i in $(seq 1 20); do
-            curl -fsS http://127.0.0.1:8080/healthz && break || sleep 1
+          for _ in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8080/healthz && exit 0
+            sleep 1
           done
-          curl -fsS http://127.0.0.1:8080/healthz
-          docker rm -f sw
+          echo "healthz did not become ready in time" >&2
+          exit 1

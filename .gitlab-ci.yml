@@ -37,18 +37,9 @@ build-image:
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
   script:
-    - docker build --cache-from "$CI_REGISTRY_IMAGE:latest"
+    - docker build --push --cache-from "$CI_REGISTRY_IMAGE:latest"
       --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       --tag "$CI_REGISTRY_IMAGE:latest" .
-    - docker run -d --name sw-$CI_COMMIT_SHORT_SHA -p 8080:8080
-      -e SMTP_SWITCH_WEB__SESSION_SECRET=ci-smoke-secret
-      "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
-    - sleep 5 && curl -s http://127.0.0.1:8080/healthz | grep -q "ok"
-    - docker rm -f sw-$CI_COMMIT_SHORT_SHA
-    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
-    - docker push "$CI_REGISTRY_IMAGE:latest"
-  after_script:
-    - docker rm -f sw-$CI_COMMIT_SHORT_SHA || true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
