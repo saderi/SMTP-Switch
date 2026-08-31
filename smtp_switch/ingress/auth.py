@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 from dataclasses import dataclass
+from typing import Any
 
 from aiosmtpd.smtp import AuthResult, LoginPassword
 from sqlalchemy import select
@@ -26,11 +27,11 @@ from smtp_switch.util import utcnow
 log = get_logger("ingress.auth")
 
 
-def peer_allowed(peer: tuple | None, networks: list) -> bool:
-    """True if ``peer`` (a ``(host, port, ...)`` tuple) is in an allowed network."""
+def peer_allowed(peer: Any, networks: list) -> bool:
+    """True if ``peer`` (aiosmtpd's ``(host, port, ...)`` tuple) is in an allowed network."""
     if not networks:
         return True
-    if not peer:
+    if not peer or not isinstance(peer, (tuple, list)):
         return False
     try:
         addr = ipaddress.ip_address(peer[0])

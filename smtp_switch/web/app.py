@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -21,8 +23,19 @@ _HERE = Path(__file__).parent
 TEMPLATES = Jinja2Templates(directory=str(_HERE / "templates"))
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    await ensure_bootstrap_user()
+    yield
+
+
 def create_app(ctx: RuntimeContext) -> FastAPI:
-    app = FastAPI(title="smtp-switch", docs_url="/api/docs", openapi_url="/api/openapi.json")
+    app = FastAPI(
+        title="smtp-switch",
+        docs_url="/api/docs",
+        openapi_url="/api/openapi.json",
+        lifespan=_lifespan,
+    )
     app.state.ctx = ctx
     app.state.sessions = SessionManager(ctx.settings.web)
     app.state.templates = TEMPLATES
@@ -33,10 +46,6 @@ def create_app(ctx: RuntimeContext) -> FastAPI:
 
     app.include_router(views.router)
     app.include_router(api.router, prefix="/api")
-
-    @app.on_event("startup")
-    async def _startup() -> None:
-        await ensure_bootstrap_user()
 
     @app.get("/healthz", response_class=PlainTextResponse)
     async def healthz() -> str:

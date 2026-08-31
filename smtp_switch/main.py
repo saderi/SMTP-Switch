@@ -71,6 +71,7 @@ class Application:
     async def _start_web(self) -> None:
         from smtp_switch.web.app import create_app
 
+        assert self.ctx is not None
         app = create_app(self.ctx)
         config = uvicorn.Config(
             app,
@@ -80,9 +81,11 @@ class Application:
             access_log=False,
             lifespan="on",
         )
-        self._web_server = uvicorn.Server(config)
-        self._web_server.install_signal_handlers = lambda: None  # we manage signals
-        self._web_task = asyncio.create_task(self._web_server.serve(), name="web")
+        server = uvicorn.Server(config)
+        # We install our own SIGINT/SIGTERM handlers in run(); stop uvicorn's.
+        server.install_signal_handlers = lambda: None  # type: ignore[attr-defined]
+        self._web_server = server
+        self._web_task = asyncio.create_task(server.serve(), name="web")
         # Wait until uvicorn is actually accepting connections.
         while not self._web_server.started:
             await asyncio.sleep(0.02)

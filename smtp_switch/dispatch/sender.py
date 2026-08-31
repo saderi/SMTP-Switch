@@ -97,14 +97,16 @@ async def relay(
         log.error("relay_auth_error", provider=provider.name, code=exc.code, error=str(exc))
         return RelayResult(TRANSIENT, exc.code, str(exc), reached_provider=True)
     except SMTPRecipientsRefused as exc:
-        refused = {r.recipient: f"{r.code} {r.message}".strip() for r in exc.recipients}
+        refused_map = {
+            r.recipient: f"{r.code} {r.message}".strip() for r in exc.recipients
+        }
         codes = [r.code for r in exc.recipients]
         worst = max(codes) if codes else 550
         cls = _classify_code(worst)
         log.warning("relay_recipients_refused", provider=provider.name, code=worst,
-                    refused=refused)
+                    refused=refused_map)
         return RelayResult(cls, worst, "all recipients refused", reached_provider=True,
-                           refused_recipients=refused)
+                           refused_recipients=refused_map)
     except SMTPResponseException as exc:
         cls = _classify_code(exc.code)
         log.warning("relay_response_error", provider=provider.name, code=exc.code,
@@ -118,7 +120,7 @@ async def relay(
             time.monotonic() - started
         )
 
-    refused = _format_refused(errors) if errors else None
+    refused: dict[str, str] | None = _format_refused(errors) if errors else None
     if refused:
         log.info("relay_partial", provider=provider.name, refused=refused)
     log.info("relay_ok", provider=provider.name, response=str(response)[:200],

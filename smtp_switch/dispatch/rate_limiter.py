@@ -216,4 +216,4 @@ class RateLimiter:
             result = await session.execute(
                 delete(SendLogEntry).where(SendLogEntry.sent_at < cutoff)
             )
-        return result.rowcount or 0
+        return result.rowcount or 0  # type: ignore[attr-defined]  # CursorResult

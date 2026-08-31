@@ -11,9 +11,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from smtp_switch.config import Settings
 from smtp_switch.db.models import (
@@ -95,8 +96,9 @@ class Dispatcher:
                 .where(Message.status == MessageStatus.SENDING)
                 .values(status=MessageStatus.QUEUED, claimed_at=None)
             )
-        if result.rowcount:
-            log.warning("recovered_orphaned_messages", count=result.rowcount)
+        affected = result.rowcount  # type: ignore[attr-defined]  # CursorResult
+        if affected:
+            log.warning("recovered_orphaned_messages", count=affected)
 
     # ------------------------------------------------------------------ producer
     async def _producer(self) -> None:
@@ -274,10 +276,10 @@ class Dispatcher:
 
         if not made_attempt:
             # Every provider was down or capped — hold without burning an attempt.
-            delay = self.settings.dispatch.no_capacity_backoff_seconds
-            await self._reschedule(message_id, delay, last_error="no provider capacity",
+            hold = float(self.settings.dispatch.no_capacity_backoff_seconds)
+            await self._reschedule(message_id, hold, last_error="no provider capacity",
                                    bump_attempts=False)
-            log.info("message_held_no_capacity", message_id=message_id, retry_in_s=delay)
+            log.info("message_held_no_capacity", message_id=message_id, retry_in_s=hold)
             return
 
         all_candidates = set(self.router.candidate_names())
@@ -436,30 +438,35 @@ class Dispatcher:
                     continue
                 ids = [r[0] for r in rows]
                 await db.execute(
-                    DeliveryAttempt.__table__.delete().where(
-                        DeliveryAttempt.message_id.in_(ids)
-                    )
+                    delete(DeliveryAttempt).where(DeliveryAttempt.message_id.in_(ids))
                 )
-                await db.execute(Message.__table__.delete().where(Message.id.in_(ids)))
+                await db.execute(delete(Message).where(Message.id.in_(ids)))
             for _mid, spath in rows:
                 self.spool.delete(spath)
             deleted += len(ids)
         return deleted
 
 
+@dataclass(slots=True)
 class _MsgSnapshot:
-    __slots__ = (
-        "id", "received_at", "from_addr", "rcpt_to", "spool_path", "attempts", "claimed_at",
-    )
+    """Plain-data copy of a Message, safe to use after its session closes."""
+
+    id: int
+    received_at: datetime
+    from_addr: str
+    rcpt_to: list[str]
+    spool_path: str
+    attempts: int
+    claimed_at: datetime | None
 
     @classmethod
     def from_row(cls, msg: Message) -> _MsgSnapshot:
-        self = cls()
-        self.id = msg.id
-        self.received_at = msg.received_at
-        self.from_addr = msg.from_addr
-        self.rcpt_to = list(msg.rcpt_to or [])
-        self.spool_path = msg.spool_path
-        self.attempts = msg.attempts
-        self.claimed_at = msg.claimed_at
-        return self
+        return cls(
+            id=msg.id,
+            received_at=msg.received_at,
+            from_addr=msg.from_addr,
+            rcpt_to=list(msg.rcpt_to or []),
+            spool_path=msg.spool_path,
+            attempts=msg.attempts,
+            claimed_at=msg.claimed_at,
+        )

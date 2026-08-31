@@ -115,7 +115,8 @@ class SwitchHandler:
     async def handle_DATA(
         self, server: SMTPServer, session: Session, envelope: Envelope,
     ) -> str:
-        content: bytes = envelope.original_content or envelope.content or b""
+        raw = envelope.original_content or envelope.content or b""
+        content: bytes = raw if isinstance(raw, bytes) else raw.encode("utf-8", "surrogateescape")
         if not envelope.rcpt_tos:
             return "554 5.5.1 No valid recipients"
 
@@ -219,8 +220,10 @@ class IngressServer:
 
     @property
     def port(self) -> int:
-        if self._controller and self._controller.server:
-            return self._controller.server.sockets[0].getsockname()[1]
+        server = self._controller.server if self._controller else None
+        sockets = getattr(server, "sockets", None)
+        if sockets:
+            return int(sockets[0].getsockname()[1])
         return self.settings.ingress.port
 
     async def start(self) -> None:
